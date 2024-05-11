@@ -65,15 +65,15 @@ public class AmbientEngine {
     }
     
     public static AmbientEngine attemptToLoadEngine(AmbientSoundEngine soundEngine, ResourceManager manager, String name) throws Exception {
-        InputStream engineInput = manager.getResource(new ResourceLocation(AmbientSounds.MODID, name + "/" + ENGINE_LOCATION)).orElseThrow().open();
+        InputStream engineInput = manager.getResource(new ResourceLocation(AmbientSounds.MODID, name + "/" + ENGINE_LOCATION)).getInputStream();
         try {
             AmbientEngine engine = GSON.fromJson(JsonParser.parseString(IOUtils.toString(engineInput, Charsets.UTF_8)).getAsJsonObject(), AmbientEngine.class);
             
             if (!engine.name.equals(name))
                 throw new Exception("Invalid engine name");
             
-            for (Resource resource : manager.getResourceStack(new ResourceLocation(AmbientSounds.MODID, name + "/" + DIMENSIONS_LOCATION))) {
-                InputStream input = resource.open();
+            for (Resource resource : manager.getResources(new ResourceLocation(AmbientSounds.MODID, name + "/" + DIMENSIONS_LOCATION))) {
+                InputStream input = resource.getInputStream();
                 try {
                     JsonArray array = JsonParser.parseString(IOUtils.toString(input, Charsets.UTF_8)).getAsJsonArray();
                     AmbientDimension[] dimensions = GSON.fromJson(array, AmbientDimension[].class);
@@ -92,8 +92,8 @@ public class AmbientEngine {
                 }
             }
             
-            for (Resource resource : manager.getResourceStack(new ResourceLocation(AmbientSounds.MODID, name + "/" + REGIONS_LOCATION))) {
-                InputStream input = resource.open();
+            for (Resource resource : manager.getResources(new ResourceLocation(AmbientSounds.MODID, name + "/" + REGIONS_LOCATION))) {
+                InputStream input = resource.getInputStream();
                 try {
                     try {
                         AmbientRegion[] regions = GSON.fromJson(JsonParser.parseString(IOUtils.toString(input, Charsets.UTF_8)), AmbientRegion[].class);
@@ -113,7 +113,7 @@ public class AmbientEngine {
                             }
                         }
                     } catch (JsonSyntaxException e) {
-                        System.out.println("Failed to load  " + AmbientSounds.MODID + ":" + name + "/" + REGIONS_LOCATION + " " + resource.sourcePackId());
+                        System.out.println("Failed to load  " + AmbientSounds.MODID + ":" + name + "/" + REGIONS_LOCATION + " " + resource.getLocation());
                         e.printStackTrace();
                     }
                 } finally {
@@ -122,8 +122,8 @@ public class AmbientEngine {
             }
             
             engine.features = new ArrayList<>();
-            for (Resource resource : manager.getResourceStack(new ResourceLocation(AmbientSounds.MODID, name + "/" + FEATURES_LOCATION))) {
-                InputStream input = resource.open();
+            for (Resource resource : manager.getResources(new ResourceLocation(AmbientSounds.MODID, name + "/" + FEATURES_LOCATION))) {
+                InputStream input = resource.getInputStream();
                 try {
                     AmbientFeature[] features = GSON.fromJson(JsonParser.parseString(IOUtils.toString(input, Charsets.UTF_8)), AmbientFeature[].class);
                     HashSet<String> groups = new HashSet<>();
@@ -135,8 +135,8 @@ public class AmbientEngine {
                     
                     for (String groupName : groups) {
                         AmbientBlockGroup group = new AmbientBlockGroup();
-                        for (Resource scanResource : manager.getResourceStack(new ResourceLocation(AmbientSounds.MODID, name + "/blockgroups/" + groupName + ".json"))) {
-                            InputStream input2 = scanResource.open();
+                        for (Resource scanResource : manager.getResources(new ResourceLocation(AmbientSounds.MODID, name + "/blockgroups/" + groupName + ".json"))) {
+                            InputStream input2 = scanResource.getInputStream();
                             try {
                                 try {
                                     group.add(GSON.fromJson(JsonParser.parseString(IOUtils.toString(input2, Charsets.UTF_8)), String[].class));
@@ -176,7 +176,7 @@ public class AmbientEngine {
         try {
             ResourceManager manager = Minecraft.getInstance().getResourceManager();
             
-            InputStream input = manager.getResource(CONFIG_LOCATION).orElseThrow().open();
+            InputStream input = manager.getResource(CONFIG_LOCATION).getInputStream();
             try {
                 AmbientConfig config = GSON.fromJson(JsonParser.parseString(IOUtils.toString(input, Charsets.UTF_8)).getAsJsonObject(), AmbientConfig.class);
                 

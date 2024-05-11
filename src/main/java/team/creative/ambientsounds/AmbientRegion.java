@@ -39,9 +39,9 @@ public class AmbientRegion extends AmbientCondition {
     
     public void load(AmbientEngine engine, Gson gson, ResourceManager manager) throws IOException {
         this.sounds = new LinkedHashMap<>();
-        for (Resource resource : manager.getResourceStack(
+        for (Resource resource : manager.getResources(
             new ResourceLocation(AmbientSounds.MODID, engine.name + "/sounds/" + (dimension != null ? dimension.name + "." : "") + name + ".json"))) {
-            InputStream input = resource.open();
+            InputStream input = resource.getInputStream();
             try {
                 try {
                     AmbientSound[] sounds = gson.fromJson(JsonParser.parseString(IOUtils.toString(input, Charsets.UTF_8)), AmbientSound[].class);

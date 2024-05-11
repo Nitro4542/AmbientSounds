@@ -5,7 +5,7 @@ import java.util.Iterator;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.BlockPos.MutableBlockPos;
 import net.minecraft.core.Holder;
-import net.minecraft.core.registries.Registries;
+import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
@@ -28,7 +28,7 @@ public class BiomeEnvironment implements Iterable<Pair<BiomeArea, AmbientVolume>
     public BiomeEnvironment(AmbientEngine engine, Player player, Level level, AmbientVolume volume) {
         highestRainVolume = 0;
         if (volume.volume() > 0.0) {
-            BlockPos center = BlockPos.containing(player.getEyePosition(CreativeCoreClient.getFrameTime()));
+            BlockPos center = TerrainEnvironment.containing(player.getEyePosition(CreativeCoreClient.getFrameTime()));
             MutableBlockPos pos = new MutableBlockPos();
             for (int x = -engine.biomeScanCount; x <= engine.biomeScanCount; x++) {
                 for (int z = -engine.biomeScanCount; z <= engine.biomeScanCount; z++) {
@@ -37,7 +37,7 @@ public class BiomeEnvironment implements Iterable<Pair<BiomeArea, AmbientVolume>
                     
                     float biomeConditionVolume = (float) ((1 - center.distSqr(pos) / engine.squaredBiomeDistance) * volume.conditionVolume());
                     
-                    if (level.isRaining() && holder.value().getPrecipitationAt(pos) == Precipitation.RAIN)
+                    if (level.isRaining() && holder.value().getPrecipitation() == Precipitation.RAIN)
                         highestRainVolume = Math.max(highestRainVolume, biomeConditionVolume * volume.settingVolume());
                     
                     BiomeArea area = new BiomeArea(level, holder, pos);
@@ -70,7 +70,7 @@ public class BiomeEnvironment implements Iterable<Pair<BiomeArea, AmbientVolume>
         
         public BiomeArea(Level level, Holder<Biome> biome, BlockPos pos) {
             this.biome = biome;
-            this.location = level.registryAccess().registryOrThrow(Registries.BIOME).getKey(biome.value());
+            this.location = level.registryAccess().registryOrThrow(Registry.BIOME_REGISTRY).getKey(biome.value());
             this.pos = pos;
         }
         

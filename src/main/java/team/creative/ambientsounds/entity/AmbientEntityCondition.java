@@ -16,7 +16,7 @@ import com.google.gson.stream.JsonToken;
 import com.google.gson.stream.JsonWriter;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 
-import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.Registry;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtUtils;
 import net.minecraft.nbt.TagParser;
@@ -89,7 +89,7 @@ public class AmbientEntityCondition {
             parsedType = new ArrayList<>();
             for (String entityType : type) {
                 ResourceLocation location = new ResourceLocation(entityType);
-                var result = BuiltInRegistries.ENTITY_TYPE.getOptional(location);
+                var result = Registry.ENTITY_TYPE.getOptional(location);
                 if (result.isPresent())
                     parsedType.add(result.get());
             }
@@ -99,7 +99,7 @@ public class AmbientEntityCondition {
             parsedBadType = new ArrayList<>();
             for (String entityType : badType) {
                 ResourceLocation location = new ResourceLocation(entityType);
-                var result = BuiltInRegistries.ENTITY_TYPE.getOptional(location);
+                var result = Registry.ENTITY_TYPE.getOptional(location);
                 if (result.isPresent())
                     parsedBadType.add(result.get());
             }

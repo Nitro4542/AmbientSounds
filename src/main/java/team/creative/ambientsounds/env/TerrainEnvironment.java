@@ -2,8 +2,10 @@ package team.creative.ambientsounds.env;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.BlockPos.MutableBlockPos;
+import net.minecraft.core.Position;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.FluidTags;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
@@ -14,6 +16,14 @@ import team.creative.ambientsounds.env.pocket.AirPocketScanner;
 import team.creative.creativecore.client.CreativeCoreClient;
 
 public class TerrainEnvironment {
+    
+    public static BlockPos containing(double x, double y, double z) {
+        return new BlockPos(Mth.floor(x), Mth.floor(y), Mth.floor(z));
+    }
+    
+    public static BlockPos containing(Position pos) {
+        return new BlockPos(Mth.floor(pos.x()), Mth.floor(pos.y()), Mth.floor(pos.z()));
+    }
     
     public double averageHeight;
     
@@ -70,7 +80,7 @@ public class TerrainEnvironment {
     
     public void analyzeAirPocket(AmbientEngine engine, Player player, Level level) {
         if (scanner == null)
-            scanner = new AirPocketScanner(engine, level, BlockPos.containing(player.getEyePosition(CreativeCoreClient.getFrameTime())), x -> {
+            scanner = new AirPocketScanner(engine, level, containing(player.getEyePosition(CreativeCoreClient.getFrameTime())), x -> {
                 airPocket = x;
                 scanner = null;
             });

@@ -51,8 +51,8 @@ public class AmbientDimension {
     
     public void load(AmbientEngine engine, Gson gson, ResourceManager manager, JsonObject object) throws IOException {
         regions = new HashMap<>();
-        for (Resource resource : manager.getResourceStack(new ResourceLocation(AmbientSounds.MODID, engine.name + "/dimension_regions/" + name + ".json"))) {
-            InputStream input = resource.open();
+        for (Resource resource : manager.getResources(new ResourceLocation(AmbientSounds.MODID, engine.name + "/dimension_regions/" + name + ".json"))) {
+            InputStream input = resource.getInputStream();
             try {
                 AmbientRegion[] regions = gson.fromJson(JsonParser.parseString(IOUtils.toString(input, Charsets.UTF_8)), AmbientRegion[].class);
                 for (int j = 0; j < regions.length; j++) {
