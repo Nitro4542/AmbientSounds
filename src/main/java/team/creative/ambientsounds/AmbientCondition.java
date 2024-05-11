@@ -2,13 +2,14 @@ package team.creative.ambientsounds;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map.Entry;
 
 import com.google.gson.annotations.SerializedName;
 
 import net.minecraft.util.Mth;
-import team.creative.ambientsounds.env.AmbientEnviroment;
-import team.creative.ambientsounds.env.BiomeEnviroment.BiomeArea;
+import team.creative.ambientsounds.entity.AmbientEntityCondition;
+import team.creative.ambientsounds.env.AmbientEnvironment;
+import team.creative.ambientsounds.env.BiomeEnvironment.BiomeArea;
+import team.creative.creativecore.common.util.type.list.Pair;
 
 public class AmbientCondition extends AmbientSoundProperties {
     
@@ -19,6 +20,9 @@ public class AmbientCondition extends AmbientSoundProperties {
     public double nightVolume = 1.0;
     @SerializedName(value = "day")
     public double dayVolume = 1.0;
+    
+    @SerializedName(value = "biome-type")
+    public String biomeType;
     
     public String[] biomes;
     @SerializedName(value = "bad-biomes")
@@ -33,7 +37,7 @@ public class AmbientCondition extends AmbientSoundProperties {
     public AmbientMinMaxFadeCondition underwater;
     
     @SerializedName(value = "relative-height")
-    public AmbientMinMaxFadeCondition relativeHeight;
+    public AmbientMinMaxFadeSpecialCondition relativeHeight;
     @SerializedName(value = "absolute-height")
     public AmbientMinMaxFadeCondition absoluteHeight;
     @SerializedName(value = "min-height-relative")
@@ -63,7 +67,7 @@ public class AmbientCondition extends AmbientSoundProperties {
     public String[] badRegions;
     transient List<AmbientRegion> badRegionList;
     
-    //public Boolean outside;
+    public AmbientEntityCondition entity;
     
     public String regionName() {
         return null;
@@ -100,9 +104,15 @@ public class AmbientCondition extends AmbientSoundProperties {
                     badRegionList.add(region);
             }
         }
+        
+        if (biomeType == null)
+            biomeType = engine.defaultBiomeType;
+        
+        if (entity != null)
+            entity.init(engine);
     }
     
-    public AmbientSelection value(AmbientEnviroment env) {
+    public AmbientSelection value(AmbientEnvironment env) {
         
         if (env.muted)
             return null;
@@ -119,7 +129,7 @@ public class AmbientCondition extends AmbientSoundProperties {
         if (raining != null && raining != env.raining)
             return null;
         
-        if (overallRaining != null && overallRaining != env.overallRaining)
+        if (overallRaining != null && overallRaining != env.isRainAudibleAtSurface()) // excluded, volume is applied later
             return null;
         
         if (snowing != null && snowing != env.snowing)
@@ -128,9 +138,12 @@ public class AmbientCondition extends AmbientSoundProperties {
         if (storming != null && env.thundering != storming)
             return null;
         
+        if (badFeatures != null && env.terrain.airPocket.volume(badFeatures) > 0)
+            return null;
+        
         AmbientSelection selection = new AmbientSelection(this);
         
-        selection.volume *= env.night ? nightVolume : dayVolume;
+        selection.mulCondition(env.night ? nightVolume : dayVolume);
         
         if (badRegionList != null)
             for (AmbientRegion region : badRegionList)
@@ -138,58 +151,68 @@ public class AmbientCondition extends AmbientSoundProperties {
                     return null;
                 
         if (regionList != null) {
-            Double highest = null;
+            AmbientVolume highest = null;
             for (AmbientRegion region : regionList) {
                 AmbientSelection subSelection = region.value(env);
                 
-                if (subSelection != null)
-                    if (highest == null)
-                        highest = subSelection.volume;
-                    else
-                        highest = Math.max(subSelection.volume, highest);
+                if (subSelection != null && (highest == null || subSelection.volume() > highest.volume()))
+                    highest = subSelection;
+                
+                if (highest != null && highest.volume() == 1)
+                    break;
             }
             
             if (highest == null)
                 return null;
             
-            selection.volume *= highest;
+            selection.mulVolume(highest);
         }
         
         if (biomes != null || badBiomes != null) {
-            Entry<BiomeArea, Float> highest = null;
+            AmbientVolume highest = null;
             
-            for (Entry<BiomeArea, Float> pair : env.biome.biomes.entrySet()) {
+            for (Pair<BiomeArea, AmbientVolume> pair : env.biome) {
                 
-                if (biomes != null && !pair.getKey().checkBiome(biomes))
+                if (biomes != null && !pair.key.checkBiome(biomes))
                     continue;
                 
-                if (badBiomes != null && pair.getKey().checkBiome(badBiomes))
+                if (badBiomes != null && pair.key.checkBiome(badBiomes))
                     return null;
                 
-                if (highest == null || highest.getValue() < pair.getValue())
-                    highest = pair;
+                if (biomes != null) {
+                    AmbientVolume volume = pair.value.copy();
+                    volume.mulVolume(env.biomeTypeVolumes.getOrDefault(biomeType, AmbientVolume.MAX));
+                    if (highest == null || highest.volume() < volume.volume())
+                        highest = volume;
+                    
+                    if (highest != null && highest.volume() == 1)
+                        break;
+                }
             }
             
             if (highest == null && biomes != null)
                 return null;
             else if (highest != null)
-                selection.volume *= highest.getValue();
+                selection.mulVolume(highest);
         }
+        
+        if (overallRaining != null && overallRaining)
+            selection.mulCondition(env.rainSurfaceVolume);
         
         if (underwater != null) {
             double volume = underwater.volume(env.underwater);
             if (volume <= 0)
                 return null;
             
-            selection.volume *= volume;
+            selection.mulCondition(volume);
         }
         
         if (relativeHeight != null) {
-            double volume = relativeHeight.volume(env.relativeHeight);
+            double volume = relativeHeight.volume(env.relativeMinHeight, env.relativeHeight, env.relativeMaxHeight);
             if (volume <= 0)
                 return null;
             
-            selection.volume *= volume;
+            selection.mulCondition(volume);
         }
         
         if (minHeightRelative != null) {
@@ -197,7 +220,7 @@ public class AmbientCondition extends AmbientSoundProperties {
             if (volume <= 0)
                 return null;
             
-            selection.volume *= volume;
+            selection.mulCondition(volume);
         }
         
         if (maxHeightRelative != null) {
@@ -205,7 +228,7 @@ public class AmbientCondition extends AmbientSoundProperties {
             if (volume <= 0)
                 return null;
             
-            selection.volume *= volume;
+            selection.mulCondition(volume);
         }
         
         if (absoluteHeight != null) {
@@ -213,7 +236,7 @@ public class AmbientCondition extends AmbientSoundProperties {
             if (volume <= 0)
                 return null;
             
-            selection.volume *= volume;
+            selection.mulCondition(volume);
         }
         
         if (light != null) {
@@ -221,7 +244,7 @@ public class AmbientCondition extends AmbientSoundProperties {
             if (volume <= 0)
                 return null;
             
-            selection.volume *= volume;
+            selection.mulCondition(volume);
         }
         
         if (skyLight != null) {
@@ -229,7 +252,7 @@ public class AmbientCondition extends AmbientSoundProperties {
             if (volume <= 0)
                 return null;
             
-            selection.volume *= volume;
+            selection.mulCondition(volume);
         }
         
         if (air != null) {
@@ -237,18 +260,15 @@ public class AmbientCondition extends AmbientSoundProperties {
             if (volume <= 0)
                 return null;
             
-            selection.volume *= volume;
+            selection.mulCondition(volume);
         }
-        
-        if (badFeatures != null && env.terrain.airPocket.volume(badFeatures) > 0)
-            return null;
         
         if (features != null) {
             double volume = env.terrain.airPocket.volume(features);
             if (volume <= 0)
                 return null;
             
-            selection.volume *= volume;
+            selection.mulCondition(volume);
         }
         
         if (temperature != null) {
@@ -256,7 +276,14 @@ public class AmbientCondition extends AmbientSoundProperties {
             if (volume <= 0)
                 return null;
             
-            selection.volume *= volume;
+            selection.mulCondition(volume);
+        }
+        
+        if (entity != null) {
+            double volume = entity.value(env);
+            if (volume <= 0)
+                return null;
+            selection.mulCondition(volume);
         }
         
         if (variants != null) {
@@ -264,7 +291,7 @@ public class AmbientCondition extends AmbientSoundProperties {
             
             for (AmbientCondition condition : variants) {
                 AmbientSelection subSelection = condition.value(env);
-                if (subSelection != null && (bestCondition == null || bestCondition.volume < subSelection.volume))
+                if (subSelection != null && (bestCondition == null || bestCondition.volume() < subSelection.volume()))
                     bestCondition = subSelection;
             }
             
@@ -322,6 +349,19 @@ public class AmbientCondition extends AmbientSoundProperties {
             if (max != null)
                 volume = Math.min(volume, Mth.clamp(Math.abs(value - max) / fade, 0, 1));
             return volume;
+        }
+        
+    }
+    
+    public static class AmbientMinMaxFadeSpecialCondition extends AmbientMinMaxFadeCondition {
+        
+        public double volume(double min, double value, double max) {
+            if (fade == null)
+                return is(value) ? 1 : 0;
+            double volume = volume(value);
+            if (volume == 1)
+                return volume;
+            return Math.max(volume(min), volume(max));
         }
         
     }

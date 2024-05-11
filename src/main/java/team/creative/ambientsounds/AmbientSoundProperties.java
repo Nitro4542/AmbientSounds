@@ -4,14 +4,14 @@ import com.google.gson.annotations.SerializedName;
 
 import net.minecraft.util.Mth;
 import team.creative.ambientsounds.AmbientCondition.AmbientMinMaxCondition;
-import team.creative.ambientsounds.env.AmbientEnviroment;
+import team.creative.ambientsounds.env.AmbientEnvironment;
 
 public class AmbientSoundProperties {
     
     @SerializedName(value = "transition")
     public Integer transition;
     
-    public Double pitch;
+    public Double pitch = 1D;
     
     @SerializedName(value = "fade-volume")
     public Double fadeVolume;
@@ -28,8 +28,12 @@ public class AmbientSoundProperties {
     public Double fadeOutPitch;
     
     public Double mute;
+    @SerializedName("mute-resistant")
+    public boolean muteResistant = false;
     
-    //public AmbientMinMaxCondition offset;
+    @SerializedName("random-offset")
+    public boolean randomOffset = true;
+    
     public AmbientMinMaxCondition pause;
     public AmbientMinMaxCondition length;
     
@@ -39,26 +43,43 @@ public class AmbientSoundProperties {
     public String category;
     
     public void init(AmbientEngine engine) {
-        if (pitch == null)
-            pitch = 1D;
-        
-        if (fadeInVolume == null)
-            fadeInVolume = fadeVolume == null ? 0.005 : fadeVolume;
-        if (fadeOutVolume == null)
-            fadeOutVolume = fadeVolume == null ? 0.005 : fadeVolume;
-        
-        if (fadeInPitch == null)
-            fadeInPitch = fadePitch == null ? 0.005 : fadePitch;
-        if (fadeOutPitch == null)
-            fadeOutPitch = fadePitch == null ? 0.005 : fadePitch;
-        
-        if (mute == null)
-            mute = 0D;
-        else
+        if (mute != null)
             mute = Mth.clamp(mute, 0, 1);
     }
     
-    public float getPitch(AmbientEnviroment env) {
+    public double getFadeInVolume(AmbientEngine engine) {
+        if (fadeInVolume != null)
+            return fadeInVolume;
+        if (fadeVolume != null)
+            return fadeVolume;
+        return engine.fadeVolume;
+    }
+    
+    public double getFadeOutVolume(AmbientEngine engine) {
+        if (fadeOutVolume != null)
+            return fadeOutVolume;
+        if (fadeVolume != null)
+            return fadeVolume;
+        return engine.fadeVolume;
+    }
+    
+    public double getFadeInPitch(AmbientEngine engine) {
+        if (fadeInPitch != null)
+            return fadeInPitch;
+        if (fadePitch != null)
+            return fadePitch;
+        return engine.fadePitch;
+    }
+    
+    public double getFadeOutPitch(AmbientEngine engine) {
+        if (fadeOutPitch != null)
+            return fadeOutPitch;
+        if (fadePitch != null)
+            return fadePitch;
+        return engine.fadePitch;
+    }
+    
+    public float getPitch(AmbientEnvironment env) {
         if (underwaterPitch != null)
             return (pitch != null ? (float) (double) pitch : 1) + (float) underwaterPitch.getValue(env.underwater);
         return pitch != null ? (float) (double) pitch : 1;

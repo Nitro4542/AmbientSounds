@@ -1,12 +1,16 @@
 package team.creative.ambientsounds;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.HashMap;
+import java.util.Map.Entry;
 
 import org.apache.commons.io.IOUtils;
 
 import com.google.common.base.Charsets;
 import com.google.gson.Gson;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.annotations.SerializedName;
 
@@ -14,7 +18,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.world.level.Level;
-import team.creative.ambientsounds.env.AmbientEnviroment;
+import team.creative.ambientsounds.env.AmbientEnvironment;
 import team.creative.creativecore.common.config.api.CreativeConfig;
 
 public class AmbientDimension {
@@ -23,15 +27,14 @@ public class AmbientDimension {
     public transient double volumeSetting = 1;
     public transient HashMap<String, AmbientRegion> regions;
     
+    public transient HashMap<String, AmbientCondition> biomeTypeSelectors = new HashMap<>();
+    
     public String name;
     
     public boolean mute = false;
     
     @SerializedName("biome-selector")
     public AmbientCondition biomeSelector;
-    
-    @SerializedName("surface-selector")
-    public AmbientCondition surfaceSelector;
     
     public Boolean night;
     public Boolean rain;
@@ -46,16 +49,27 @@ public class AmbientDimension {
     @SerializedName(value = "average-height")
     public Integer averageHeight;
     
-    public void load(AmbientEngine engine, Gson gson, ResourceManager manager) throws IOException {
+    public void load(AmbientEngine engine, Gson gson, ResourceManager manager, JsonObject object) throws IOException {
         regions = new HashMap<>();
-        for (Resource resource : manager.getResources(new ResourceLocation(AmbientSounds.MODID, engine.name + "/dimension_regions/" + name + ".json"))) {
-            AmbientRegion[] regions = gson.fromJson(JsonParser.parseString(IOUtils.toString(resource.getInputStream(), Charsets.UTF_8)), AmbientRegion[].class);
-            for (int j = 0; j < regions.length; j++) {
-                AmbientRegion region = regions[j];
-                region.dimension = this;
-                this.regions.put(region.name, region);
-                region.load(engine, gson, manager);
+        for (Resource resource : manager.getResourceStack(new ResourceLocation(AmbientSounds.MODID, engine.name + "/dimension_regions/" + name + ".json"))) {
+            InputStream input = resource.open();
+            try {
+                AmbientRegion[] regions = gson.fromJson(JsonParser.parseString(IOUtils.toString(input, Charsets.UTF_8)), AmbientRegion[].class);
+                for (int j = 0; j < regions.length; j++) {
+                    AmbientRegion region = regions[j];
+                    region.dimension = this;
+                    this.regions.put(region.name, region);
+                    region.load(engine, gson, manager);
+                }
+            } finally {
+                input.close();
             }
+        }
+        
+        for (String type : engine.biomeTypes) {
+            JsonElement element = object.get(type + "-selector");
+            if (element != null)
+                biomeTypeSelectors.put(type, gson.fromJson(element, AmbientCondition.class));
         }
     }
     
@@ -63,8 +77,8 @@ public class AmbientDimension {
         if (biomeSelector != null)
             biomeSelector.init(engine);
         
-        if (surfaceSelector != null)
-            surfaceSelector.init(engine);
+        for (AmbientCondition condition : biomeTypeSelectors.values())
+            condition.init(engine);
         
         if (badDimensionNames != null)
             for (int i = 0; i < badDimensionNames.length; i++)
@@ -91,7 +105,7 @@ public class AmbientDimension {
         return dimensionNames == null;
     }
     
-    public void manipulateEnviroment(AmbientEnviroment env) {
+    public void manipulateEnviroment(AmbientEnvironment env) {
         env.muted = mute;
         
         if (night != null)
@@ -106,9 +120,18 @@ public class AmbientDimension {
         if (biomeSelector != null) {
             AmbientSelection selection = biomeSelector.value(env);
             if (selection != null)
-                env.biomeVolume = selection.getEntireVolume();
+                env.biomeVolume = selection;
             else
-                env.biomeVolume = 0;
+                env.biomeVolume = AmbientVolume.SILENT;
+        }
+        
+        env.biomeTypeVolumes.clear();
+        for (Entry<String, AmbientCondition> entry : biomeTypeSelectors.entrySet()) {
+            AmbientSelection selection = entry.getValue().value(env);
+            if (selection != null)
+                env.biomeTypeVolumes.put(entry.getKey(), selection);
+            else
+                env.biomeTypeVolumes.put(entry.getKey(), AmbientVolume.SILENT);
         }
     }
     

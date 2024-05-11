@@ -1,29 +1,28 @@
 {
-	"schemaVersion": 1,
-	"id": "ambientsounds",
-	"version": "${version}",
-	"name": "Ambiend Sounds (Fabric)",
-	"description": "Expands minecraft's ambient sounds.",
-	"authors": [
-		"CreativeMD",
-		"AriaFreeze"
-	],
-	"contact": {
-	},
-	"license": "GNU LGPL v2.1",
-	"icon": "ambientsounds.png",
-	"environment": "client",
-	"entrypoints": {
-		"client": [
-			"team.creative.ambientsounds.AmbientSounds"
-		]
-	},
-	"mixins": [
-	],
-	"depends": {
-		"fabricloader": ">=0.7.4",
-		"fabric": "*",
-		"minecraft": "1.18.x",
-		"creativecore": ">=2.6.0"
-	}
+    "schemaVersion": 1,
+    "id": "ambientsounds",
+    "version": "5.3.9",
+    "name": "AmbientSounds",
+    "description": "Expands minecraft's ambient sounds.",
+    "authors": [
+        "CreativeMD",
+        "AriaFreeze"
+    ],
+    "license": "LGPL-3.0-only",
+    "icon": "ambientsounds.png",
+    "environment": "client",
+    "entrypoints": {
+        "client": [
+            "team.creative.ambientsounds.AmbientSounds"
+        ]
+    },
+    "mixins": [
+        "ambientsounds.mixins.json"
+    ],
+    "depends": {
+        "fabricloader": ">=0.14.0",
+        "fabric-api": "*",
+        "minecraft": ">=1.20",
+        "creativecore": ">=2.11.9"
+    }
 }

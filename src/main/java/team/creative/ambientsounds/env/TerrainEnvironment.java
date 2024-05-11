@@ -2,17 +2,18 @@ package team.creative.ambientsounds.env;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.BlockPos.MutableBlockPos;
+import net.minecraft.tags.BlockTags;
+import net.minecraft.tags.FluidTags;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.LeavesBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import team.creative.ambientsounds.AmbientDimension;
 import team.creative.ambientsounds.AmbientEngine;
 import team.creative.ambientsounds.env.pocket.AirPocket;
 import team.creative.ambientsounds.env.pocket.AirPocketScanner;
+import team.creative.creativecore.client.CreativeCoreClient;
 
-public class TerrainEnviroment {
+public class TerrainEnvironment {
     
     public double averageHeight;
     
@@ -22,7 +23,7 @@ public class TerrainEnviroment {
     public AirPocket airPocket = new AirPocket();
     public AirPocketScanner scanner;
     
-    public TerrainEnviroment() {
+    public TerrainEnvironment() {
         this.averageHeight = 60;
         this.minHeight = 60;
         this.maxHeight = 60;
@@ -69,7 +70,7 @@ public class TerrainEnviroment {
     
     public void analyzeAirPocket(AmbientEngine engine, Player player, Level level) {
         if (scanner == null)
-            scanner = new AirPocketScanner(engine, level, player.eyeBlockPosition(), x -> {
+            scanner = new AirPocketScanner(engine, level, BlockPos.containing(player.getEyePosition(CreativeCoreClient.getFrameTime())), x -> {
                 airPocket = x;
                 scanner = null;
             });
@@ -79,10 +80,10 @@ public class TerrainEnviroment {
         int y;
         int heighest = 0;
         
-        for (y = level.dimensionType().height(); y > level.dimensionType().minY(); --y) {
+        for (y = level.getMaxBuildHeight(); y > level.getMinBuildHeight(); --y) {
             pos.setY(y);
             BlockState state = level.getBlockState(pos);
-            if ((state.isSolidRender(level, pos) && !(state.getBlock() instanceof LeavesBlock)) || state.is(Blocks.WATER)) {
+            if (state.isSolidRender(level, pos) || state.is(BlockTags.LEAVES) || level.getFluidState(pos).is(FluidTags.WATER)) {
                 heighest = y;
                 break;
             }

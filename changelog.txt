@@ -1,0 +1,51 @@
+5.3.9
+Fixed glass panes not being considered as a solid block
+
+5.3.8
+Fixed biome check ignoring location namespace
+
+5.3.7
+Fixed not detecting rain when standing inside half slab
+
+5.3.6
+Fixed creativecore dependency not working properly for forge
+Fixed playing seagulls at night
+Fixed not playing desert sounds in gravel desert (from terralith)
+Fixed playing storm.close even if not being close to rain
+Lowered sound volume of cicadas-desert2
+
+5.3.5
+Stopped playing ambience in alexcaves
+Fixed bad-biomes property applies biome volume
+
+5.3.4
+Added property random-offset (boolean, default: true)
+
+5.3.3
+Fixed mute-resistant not being considered correctly
+
+5.3.2
+Fixed looping sound with random offset
+Added property mute-resistant (boolean, default: false)
+
+5.3.1
+Fixed not invalid refmap for forge
+
+5.3.0
+Added sounds for mushroom fields
+Added new condition "entity" (which allows to define rules based on entities in the world)
+Added new cricket variant
+Added second cicadas-desert variant
+Added new feature to play sound files with a random offset (also has a config option)
+Added sound for when warden is around (will make all other sounds get quieter)
+Reworked volume calculation to differentiate between condition and setting volume
+Fixed forest sounds even in cold regions
+Fixed issue related to cold, highland and very_cold playing at the same time
+Fixed underwater sound not properly muting all other sounds
+Fixed mute value of sounds being dependent of user volume configuration
+Fixed missing mute property inheritance
+Fixed not detecting snow correctly
+Fixed playing sounds even though the game is paused
+
+5.2.24
+Replaced rain sound with two new ones which should solve the claim issue on youtube

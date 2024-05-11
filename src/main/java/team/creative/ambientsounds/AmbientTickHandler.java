@@ -6,23 +6,17 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map.Entry;
 
-import com.google.common.base.Strings;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.BufferBuilder;
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.Tesselator;
-import com.mojang.blaze3d.vertex.VertexFormat;
-import com.mojang.math.Matrix4f;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.GameRenderer;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
-import team.creative.ambientsounds.env.AmbientEnviroment;
+import team.creative.ambientsounds.env.AmbientEnvironment;
 import team.creative.ambientsounds.sound.AmbientSoundEngine;
 import team.creative.creativecore.CreativeCore;
 import team.creative.creativecore.Side;
@@ -37,11 +31,16 @@ public class AmbientTickHandler {
     private static Minecraft mc = Minecraft.getInstance();
     
     public AmbientSoundEngine soundEngine;
-    public AmbientEnviroment enviroment = null;
+    public AmbientEnvironment environment = null;
     public AmbientEngine engine;
     public int timer = 0;
     
     public boolean showDebugInfo = false;
+    private boolean shouldReload = false;
+    
+    public void scheduleReload() {
+        shouldReload = true;
+    }
     
     public void setEngine(AmbientEngine engine) {
         this.engine = engine;
@@ -51,32 +50,41 @@ public class AmbientTickHandler {
     public void initConfiguration() {
         CreativeConfigRegistry.ROOT.removeField(AmbientSounds.MODID);
         
+        ConfigHolderDynamic holder = CreativeConfigRegistry.ROOT.registerFolder(AmbientSounds.MODID, ConfigSynchronization.CLIENT);
+        
+        holder.registerValue("general", AmbientSounds.CONFIG);
+        
         if (engine == null)
             return;
         
-        ConfigHolderDynamic holder = CreativeConfigRegistry.ROOT.registerFolder(AmbientSounds.MODID, ConfigSynchronization.CLIENT);
-        ConfigHolderDynamic sounds = holder.registerFolder("sounds");
-        Field soundField = ReflectionHelper.findField(AmbientSound.class, "volumeSetting", "volumeSetting");
-        for (Entry<String, AmbientRegion> pair : engine.allRegions.entrySet())
-            if (pair.getValue().sounds != null)
-                for (AmbientSound sound : pair.getValue().sounds.values())
-                    sounds.registerField(pair.getKey() + "." + sound.name, soundField, sound);
-                
         ConfigHolderDynamic dimensions = holder.registerFolder("dimensions");
-        Field dimensionField = ReflectionHelper.findField(AmbientDimension.class, "volumeSetting", "volumeSetting");
+        Field dimensionField = ReflectionHelper.findField(AmbientDimension.class, "volumeSetting");
         for (AmbientDimension dimension : engine.dimensions.values())
             dimensions.registerField(dimension.name, dimensionField, dimension);
         
-        holder.registerField("silent-dimensions", ReflectionHelper.findField(AmbientEngine.class, "silentDimensions", "silentDimensions"), engine);
-        holder.registerValue("general", AmbientSounds.CONFIG);
+        ConfigHolderDynamic regions = holder.registerFolder("regions");
+        Field regionField = ReflectionHelper.findField(AmbientRegion.class, "volumeSetting");
+        Field soundField = ReflectionHelper.findField(AmbientSound.class, "volumeSetting");
+        for (Entry<String, AmbientRegion> pair : engine.allRegions.entrySet()) {
+            ConfigHolderDynamic region = regions.registerFolder(pair.getKey().replace(".", "_"));
+            region.registerField("overall", regionField, pair.getValue());
+            if (pair.getValue().sounds != null)
+                for (AmbientSound sound : pair.getValue().sounds.values())
+                    region.registerField(sound.name, soundField, sound);
+        }
+        
+        holder.registerField("fade-volume", ReflectionHelper.findField(AmbientEngine.class, "fadeVolume"), engine);
+        holder.registerField("fade-pitch", ReflectionHelper.findField(AmbientEngine.class, "fadePitch"), engine);
+        holder.registerField("silent-dimensions", ReflectionHelper.findField(AmbientEngine.class, "silentDimensions"), engine);
+        
         CreativeCore.CONFIG_HANDLER.load(AmbientSounds.MODID, Side.CLIENT);
     }
     
-    public static final DecimalFormat df = new DecimalFormat("0.##");
+    public static final DecimalFormat DECIMAL_FORMAT = new DecimalFormat("0.##");
     
     private String format(Object value) {
         if (value instanceof Double || value instanceof Float)
-            return df.format(value);
+            return DECIMAL_FORMAT.format(value);
         return value.toString();
     }
     
@@ -88,15 +96,19 @@ public class AmbientTickHandler {
                 builder.append(",");
             else
                 first = false;
-            builder.append(ChatFormatting.YELLOW + pair.key + ChatFormatting.RESET + ":" + format(pair.value));
+            if (pair.key.isEmpty())
+                builder.append(format(pair.value));
+            else
+                builder.append(ChatFormatting.YELLOW + pair.key + ChatFormatting.RESET + ":" + format(pair.value));
         }
         return builder.toString();
     }
     
-    public void onRender() {
-        if (showDebugInfo && engine != null && !mc.isPaused() && enviroment != null && mc.level != null) {
+    public void onRender(Object object) {
+        if (showDebugInfo && engine != null && !mc.isPaused() && environment != null && mc.level != null) {
             List<String> list = new ArrayList<>();
             
+            GuiGraphics graphics = (GuiGraphics) object;
             List<Pair<String, Object>> details = new ArrayList<>();
             engine.collectDetails(details);
             
@@ -106,22 +118,22 @@ public class AmbientTickHandler {
             list.add(format(details));
             details.clear();
             
-            enviroment.collectLevelDetails(details);
+            environment.collectLevelDetails(details);
             
             list.add(format(details));
             details.clear();
             
-            enviroment.collectPlayerDetails(details, mc.player);
+            environment.collectPlayerDetails(details, mc.player);
             
             list.add(format(details));
             details.clear();
             
-            enviroment.collectTerrainDetails(details);
+            environment.collectTerrainDetails(details);
             
             list.add(format(details));
             details.clear();
             
-            enviroment.collectBiomeDetails(details);
+            environment.collectBiomeDetails(details);
             
             list.add(format(details));
             details.clear();
@@ -143,6 +155,7 @@ public class AmbientTickHandler {
                     if (sound.stream1 != null) {
                         details.add(new Pair<>("n", sound.stream1.location));
                         details.add(new Pair<>("v", sound.stream1.volume));
+                        details.add(new Pair<>("cv", sound.stream1.conditionVolume()));
                         details.add(new Pair<>("i", sound.stream1.index));
                         details.add(new Pair<>("p", sound.stream1.pitch));
                         details.add(new Pair<>("t", sound.stream1.ticksPlayed));
@@ -156,6 +169,7 @@ public class AmbientTickHandler {
                     if (sound.stream2 != null) {
                         details.add(new Pair<>("n", sound.stream2.location));
                         details.add(new Pair<>("v", sound.stream2.volume));
+                        details.add(new Pair<>("cv", sound.stream2.conditionVolume()));
                         details.add(new Pair<>("i", sound.stream2.index));
                         details.add(new Pair<>("p", sound.stream2.pitch));
                         details.add(new Pair<>("t", sound.stream2.ticksPlayed));
@@ -169,49 +183,17 @@ public class AmbientTickHandler {
                     list.add(text);
                 }
             }
-            
-            for (int i = 0; i < list.size(); ++i) {
-                String s = list.get(i);
-                
-                if (!Strings.isNullOrEmpty(s)) {
-                    int j = mc.font.lineHeight;
-                    int k = mc.font.width(s);
-                    int i1 = 2 + j * i;
-                    PoseStack mat = new PoseStack();
-                    drawGradientRect(mat.last().pose(), 0, 1, i1 - 1, 2 + k + 1, i1 + j - 1, -1873784752, -1873784752);
-                    mc.font.drawShadow(mat, s, 2, i1, 14737632);
+            RenderSystem.defaultBlendFunc();
+            Font font = mc.font;
+            int top = 2;
+            for (String msg : list) {
+                if (msg != null && !msg.isEmpty()) {
+                    graphics.fill(1, top - 1, 2 + font.width(msg) + 1, top + font.lineHeight - 1, -1873784752);
+                    graphics.drawString(font, msg, 2, top, 14737632, false);
                 }
+                top += font.lineHeight;
             }
         }
-    }
-    
-    public static void drawGradientRect(Matrix4f mat, int zLevel, int left, int top, int right, int bottom, int startColor, int endColor) {
-        float startAlpha = (startColor >> 24 & 255) / 255.0F;
-        float startRed = (startColor >> 16 & 255) / 255.0F;
-        float startGreen = (startColor >> 8 & 255) / 255.0F;
-        float startBlue = (startColor & 255) / 255.0F;
-        float endAlpha = (endColor >> 24 & 255) / 255.0F;
-        float endRed = (endColor >> 16 & 255) / 255.0F;
-        float endGreen = (endColor >> 8 & 255) / 255.0F;
-        float endBlue = (endColor & 255) / 255.0F;
-        
-        RenderSystem.enableDepthTest();
-        RenderSystem.disableTexture();
-        RenderSystem.enableBlend();
-        RenderSystem.defaultBlendFunc();
-        RenderSystem.setShader(GameRenderer::getPositionColorShader);
-        
-        Tesselator tessellator = Tesselator.getInstance();
-        BufferBuilder buffer = tessellator.getBuilder();
-        buffer.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
-        buffer.vertex(mat, right, top, zLevel).color(startRed, startGreen, startBlue, startAlpha).endVertex();
-        buffer.vertex(mat, left, top, zLevel).color(startRed, startGreen, startBlue, startAlpha).endVertex();
-        buffer.vertex(mat, left, bottom, zLevel).color(endRed, endGreen, endBlue, endAlpha).endVertex();
-        buffer.vertex(mat, right, bottom, zLevel).color(endRed, endGreen, endBlue, endAlpha).endVertex();
-        tessellator.end();
-        
-        RenderSystem.disableBlend();
-        RenderSystem.enableTexture();
     }
     
     public void loadLevel(LevelAccessor level) {
@@ -221,11 +203,16 @@ public class AmbientTickHandler {
     
     public void onTick() {
         if (soundEngine == null) {
-            soundEngine = new AmbientSoundEngine(mc.getSoundManager(), mc.options);
+            soundEngine = new AmbientSoundEngine();
             if (engine == null)
                 setEngine(AmbientEngine.loadAmbientEngine(soundEngine));
             if (engine != null)
                 engine.soundEngine = soundEngine;
+        }
+        
+        if (shouldReload) {
+            AmbientSounds.reload();
+            shouldReload = false;
         }
         
         if (engine == null)
@@ -234,31 +221,32 @@ public class AmbientTickHandler {
         Level level = mc.level;
         Player player = mc.player;
         
-        if (level != null && player != null && !mc.isPaused() && mc.options.getSoundSourceVolume(SoundSource.AMBIENT) > 0) {
+        if (level != null && player != null && mc.options.getSoundSourceVolume(SoundSource.AMBIENT) > 0 && !mc.isPaused()) {
             
-            if (enviroment == null)
-                enviroment = new AmbientEnviroment();
+            if (environment == null)
+                environment = new AmbientEnvironment();
             
             AmbientDimension newDimension = engine.getDimension(level);
-            if (enviroment.dimension != newDimension) {
-                engine.changeDimension(enviroment, newDimension);
-                enviroment.dimension = newDimension;
+            if (environment.dimension != newDimension) {
+                engine.changeDimension(environment, newDimension);
+                environment.dimension = newDimension;
             }
             
-            if (timer % engine.enviromentTickTime == 0)
-                enviroment.analyzeSlow(newDimension, engine, player, level, timer);
+            if (timer % engine.environmentTickTime == 0)
+                environment.analyzeSlow(newDimension, engine, player, level, timer);
             
             if (timer % engine.soundTickTime == 0) {
-                enviroment.analyzeFast(newDimension, player, level, mc.getDeltaFrameTime());
-                engine.tick(enviroment);
+                environment.analyzeFast(newDimension, player, level, mc.getDeltaFrameTime());
+                environment.dimension.manipulateEnviroment(environment);
                 
-                enviroment.dimension.manipulateEnviroment(enviroment);
+                engine.tick(environment);
             }
             
-            engine.fastTick(enviroment);
+            engine.fastTick(environment);
             
             timer++;
         } else if (!engine.activeRegions.isEmpty())
             engine.stopEngine();
     }
+    
 }

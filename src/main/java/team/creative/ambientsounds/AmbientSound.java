@@ -1,22 +1,40 @@
 package team.creative.ambientsounds;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.Arrays;
 import java.util.Random;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
+import com.mojang.blaze3d.audio.OggAudioStream;
+
+import net.minecraft.Util;
 import net.minecraft.client.resources.sounds.Sound;
 import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.client.resources.sounds.TickableSoundInstance;
+import net.minecraft.client.sounds.AudioStream;
+import net.minecraft.client.sounds.LoopingAudioStream;
+import net.minecraft.client.sounds.LoopingAudioStream.AudioStreamProvider;
+import net.minecraft.client.sounds.SoundBufferLibrary;
 import net.minecraft.client.sounds.SoundManager;
 import net.minecraft.client.sounds.WeighedSoundEvents;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.packs.PackType;
+import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
-import team.creative.ambientsounds.env.AmbientEnviroment;
+import net.minecraft.util.RandomSource;
+import team.creative.ambientsounds.env.AmbientEnvironment;
+import team.creative.ambientsounds.mixin.SoundBufferLibraryAccessor;
+import team.creative.ambientsounds.sound.OggAudioStreamExtended;
+import team.creative.creativecore.client.sound.SpecialSoundInstance;
 import team.creative.creativecore.common.config.api.CreativeConfig;
+import team.creative.creativecore.common.util.mc.ResourceUtils;
 
 public class AmbientSound extends AmbientCondition {
     
-    private static Random rand = new Random();
+    private static final Random RANDOM = new Random();
     
     @CreativeConfig.DecimalRange(min = 0, max = 1)
     public transient double volumeSetting = 1;
@@ -30,7 +48,8 @@ public class AmbientSound extends AmbientCondition {
     
     protected transient boolean active;
     
-    protected transient float aimedVolume;
+    protected transient float cachedAimedVolume;
+    protected transient AmbientVolume aimedVolume;
     protected transient float currentVolume;
     protected transient float aimedPitch;
     protected transient int transition;
@@ -45,6 +64,8 @@ public class AmbientSound extends AmbientCondition {
     public void init(AmbientEngine engine) {
         if (files == null || files.length == 0)
             throw new RuntimeException("Invalid sound " + name + " which does not contain any sound file");
+        
+        super.init(engine);
         
         this.engine = engine;
         
@@ -66,24 +87,24 @@ public class AmbientSound extends AmbientCondition {
     protected int getRandomFile() {
         if (files.length == 1)
             return 0;
-        return rand.nextInt(files.length);
+        return RANDOM.nextInt(files.length);
     }
     
     protected int getRandomFileExcept(int i) {
         if (files.length == 2)
             return i == 0 ? 1 : 0;
-        int index = rand.nextInt(files.length - 1);
+        int index = RANDOM.nextInt(files.length - 1);
         if (index >= i)
             index++;
         return index;
     }
     
-    public boolean fastTick(AmbientEnviroment env) {
+    public boolean fastTick(AmbientEnvironment env) {
         
-        if (currentVolume < aimedVolume)
-            currentVolume += Math.min(currentPropertries.fadeInVolume, aimedVolume - currentVolume);
-        else if (currentVolume > aimedVolume)
-            currentVolume -= Math.min(currentPropertries.fadeOutVolume, currentVolume - aimedVolume);
+        if (currentVolume < cachedAimedVolume)
+            currentVolume += Math.min(currentPropertries.getFadeInVolume(engine), cachedAimedVolume - currentVolume);
+        else if (currentVolume > cachedAimedVolume)
+            currentVolume -= Math.min(currentPropertries.getFadeOutVolume(engine), currentVolume - cachedAimedVolume);
         
         if (isPlaying()) {
             
@@ -112,12 +133,11 @@ public class AmbientSound extends AmbientCondition {
                     if (currentPropertries.pause == null && files.length > 1) { // Continuous transition
                         if (stream1.remaining() <= 0) {
                             transition = 0;
-                            stream2 = play(getRandomFileExcept(stream1.index), env);
-                            stream2.volume = 0;
+                            stream2 = play(getRandomFileExcept(stream1.index), env, 0);
                             transitionTime = currentPropertries.transition != null ? currentPropertries.transition : 60;
                         }
                     } else {
-                        int fadeOutTime = (int) Math.ceil(aimedVolume / currentPropertries.fadeOutVolume);
+                        int fadeOutTime = (int) Math.ceil(cachedAimedVolume / currentPropertries.getFadeOutVolume(engine));
                         
                         if (stream1.remaining() <= 0) { // Exceeded length
                             engine.soundEngine.stop(stream1);
@@ -132,17 +152,17 @@ public class AmbientSound extends AmbientCondition {
             if (stream1 != null) {
                 
                 if (stream1.pitch < aimedPitch)
-                    stream1.pitch += Math.min(currentPropertries.fadeInPitch, aimedPitch - stream1.pitch);
+                    stream1.pitch += Math.min(currentPropertries.getFadeInPitch(engine), aimedPitch - stream1.pitch);
                 else if (stream1.pitch > aimedPitch)
-                    stream1.pitch -= Math.min(currentPropertries.fadeOutPitch, stream1.pitch - aimedPitch);
+                    stream1.pitch -= Math.min(currentPropertries.getFadeOutPitch(engine), stream1.pitch - aimedPitch);
                 stream1.ticksPlayed++;
             }
             if (stream2 != null) {
                 
                 if (stream2.pitch < aimedPitch)
-                    stream2.pitch += Math.min(currentPropertries.fadeInPitch, aimedPitch - stream2.pitch);
+                    stream2.pitch += Math.min(currentPropertries.getFadeInPitch(engine), aimedPitch - stream2.pitch);
                 else if (stream2.pitch > aimedPitch)
-                    stream2.pitch -= Math.min(currentPropertries.fadeOutPitch, stream2.pitch - aimedPitch);
+                    stream2.pitch -= Math.min(currentPropertries.getFadeOutPitch(engine), stream2.pitch - aimedPitch);
                 stream2.ticksPlayed++;
             }
         } else {
@@ -162,42 +182,59 @@ public class AmbientSound extends AmbientCondition {
                 pauseTimer--;
         }
         
-        return aimedVolume > 0 || currentVolume > 0;
+        return cachedAimedVolume > 0 || currentVolume > 0;
     }
     
     @Override
-    public AmbientSelection value(AmbientEnviroment env) {
+    public AmbientSelection value(AmbientEnvironment env) {
         if (volumeSetting == 0)
             return null;
         return super.value(env);
     }
     
-    public boolean tick(AmbientEnviroment env, AmbientSelection selection) {
+    public boolean tick(AmbientEnvironment env, AmbientSelection selection) {
         if (selection != null) {
             AmbientSelection soundSelection = value(env);
             
             if (soundSelection != null) {
-                AmbientSelection last = selection.getLast();
+                AmbientSelection last = selection.last();
                 last.subSelection = soundSelection;
-                aimedVolume = (float) selection.getEntireVolume();
+                cachedAimedVolume = (float) selection.volume();
+                aimedVolume = selection;
                 currentPropertries = selection.getProperties();
                 last.subSelection = null;
                 
                 aimedPitch = Mth.clamp(currentPropertries.getPitch(env), 0.5F, 2.0F);
-            } else
-                aimedVolume = 0;
-        } else
-            aimedVolume = 0;
+            } else {
+                aimedVolume = AmbientVolume.SILENT;
+                cachedAimedVolume = 0;
+            }
+        } else {
+            aimedVolume = AmbientVolume.SILENT;
+            cachedAimedVolume = 0;
+        }
         
-        return aimedVolume > 0 || currentVolume > 0;
+        return cachedAimedVolume > 0 || currentVolume > 0;
     }
     
-    protected SoundStream play(int index, AmbientEnviroment env) {
+    protected SoundStream play(int index, AmbientEnvironment env) {
         SoundStream stream = new SoundStream(index, env);
         stream.pitch = aimedPitch;
         if (currentPropertries.length != null)
             stream.duration = (int) currentPropertries.length.randomValue();
         
+        engine.soundEngine.play(stream);
+        return stream;
+    }
+    
+    protected SoundStream play(int index, AmbientEnvironment env, double volume) {
+        SoundStream stream = new SoundStream(index, env);
+        stream.pitch = aimedPitch;
+        if (currentPropertries.length != null)
+            stream.duration = (int) currentPropertries.length.randomValue();
+        
+        stream.volume = volume;
+        stream.generatedVoume = (float) volume;
         engine.soundEngine.play(stream);
         return stream;
     }
@@ -244,11 +281,13 @@ public class AmbientSound extends AmbientCondition {
         return currentPropertries.length != null || (currentPropertries.pause == null && files.length == 1);
     }
     
-    public double getCombinedVolume(AmbientEnviroment env) {
-        return currentVolume * volumeSetting * env.dimension.volumeSetting;
+    public double getCombinedVolume(AmbientEnvironment env) {
+        return currentVolume * volumeSetting * env.dimension.volumeSetting * AmbientSounds.CONFIG.volume;
     }
     
-    public class SoundStream implements TickableSoundInstance {
+    public class SoundStream implements TickableSoundInstance, SpecialSoundInstance {
+        
+        private static final RandomSource rand = RandomSource.create();
         
         public final int index;
         public final ResourceLocation location;
@@ -265,7 +304,7 @@ public class AmbientSound extends AmbientCondition {
         private boolean playedOnce;
         public final SoundSource category;
         
-        public SoundStream(int index, AmbientEnviroment env) {
+        public SoundStream(int index, AmbientEnvironment env) {
             this.index = index;
             this.location = AmbientSound.this.files[index];
             this.volume = AmbientSound.this.getCombinedVolume(env);
@@ -281,8 +320,16 @@ public class AmbientSound extends AmbientCondition {
             return duration - ticksPlayed;
         }
         
+        public double conditionVolume() {
+            return Mth.clamp(currentVolume / cachedAimedVolume, 0, 1) * aimedVolume.conditionVolume();
+        }
+        
         public double mute() {
-            return AmbientSound.this.currentPropertries.mute * volume;
+            return AmbientSound.this.currentPropertries.mute != null ? AmbientSound.this.currentPropertries.mute * conditionVolume() : 0;
+        }
+        
+        public boolean muteResistant() {
+            return AmbientSound.this.currentPropertries.muteResistant;
         }
         
         public void onStart() {
@@ -309,7 +356,8 @@ public class AmbientSound extends AmbientCondition {
         
         @Override
         public String toString() {
-            return "l:" + location + ",v:" + (Math.round(volume * 100D) / 100D) + ",i:" + index + ",p:" + pitch + ",t:" + ticksPlayed + ",d:" + duration;
+            return "l:" + location + ",v:" + AmbientTickHandler.DECIMAL_FORMAT.format(volume) + "(" + AmbientTickHandler.DECIMAL_FORMAT.format(
+                conditionVolume()) + "),i:" + index + ",p:" + pitch + ",t:" + ticksPlayed + ",d:" + duration;
         }
         
         @Override
@@ -345,7 +393,7 @@ public class AmbientSound extends AmbientCondition {
         
         @Override
         public Sound getSound() {
-            return soundeventaccessor.getSound();
+            return soundeventaccessor.getSound(rand);
         }
         
         @Override
@@ -387,6 +435,40 @@ public class AmbientSound extends AmbientCondition {
         public boolean isRelative() {
             return true;
         }
+        
+        @Override
+        public boolean canStartSilent() {
+            return true;
+        }
+        
+        @Override
+        public CompletableFuture<AudioStream> getAudioStream(SoundBufferLibrary loader, ResourceLocation id, boolean looping) {
+            return CompletableFuture.supplyAsync(() -> {
+                try {
+                    Resource resource = ((SoundBufferLibraryAccessor) loader).getResourceManager().getResourceOrThrow(id);
+                    InputStream inputstream = resource.open();
+                    return looping ? new LoopingAudioStream(new AudioStreamProvider() {
+                        
+                        boolean first = true;
+                        
+                        @Override
+                        public AudioStream create(InputStream inputstream) throws IOException {
+                            try {
+                                OggAudioStream stream = new OggAudioStream(inputstream);
+                                if (first && currentPropertries.randomOffset && AmbientSounds.CONFIG.playSoundWithOffset)
+                                    ((OggAudioStreamExtended) stream).setPositionRandomly(ResourceUtils.length(PackType.CLIENT_RESOURCES, resource, id));
+                                first = false;
+                                return stream;
+                            } catch (Exception e2) {
+                                return new OggAudioStream(resource.open());
+                            }
+                        }
+                    }, inputstream) : new OggAudioStream(inputstream);
+                } catch (IOException ioexception) {
+                    throw new CompletionException(ioexception);
+                }
+            }, Util.backgroundExecutor());
+        }
     }
     
     @Override
@@ -402,6 +484,8 @@ public class AmbientSound extends AmbientCondition {
     }
     
     public static SoundSource getSoundSource(String name) {
+        if (AmbientSounds.CONFIG.useSoundMasterSource)
+            return SoundSource.MASTER;
         if (name == null)
             return SoundSource.AMBIENT;
         for (int i = 0; i < SoundSource.values().length; i++)
