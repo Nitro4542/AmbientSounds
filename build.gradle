@@ -12,13 +12,8 @@ java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
 project.evaluationDependsOn(":CreativeCore")
 
-configurations {
-    runtimeClasspath.extendsFrom localRuntime
-}
-
 dependencies {
-    compileOnly "net.neoforged:neoforge:${forge_version}"
-    localRuntime "net.neoforged:neoforge:${forge_version}"
+    implementation "net.neoforged:neoforge:${forge_version}"
     
     implementation project(':CreativeCore')
 }
