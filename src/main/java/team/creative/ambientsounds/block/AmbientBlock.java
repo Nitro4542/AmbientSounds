@@ -42,8 +42,8 @@ public abstract class AmbientBlock {
     
     private static AmbientBlock parseFirst(String data) {
         if (data.startsWith("#"))
-            return new AmbientBlockTag(TagKey.create(Registries.BLOCK, new ResourceLocation(data.substring(1))));
-        return new AmbientBlockBlock(new ResourceLocation(data));
+            return new AmbientBlockTag(TagKey.create(Registries.BLOCK, ResourceLocation.parse(data.substring(1))));
+        return new AmbientBlockBlock(ResourceLocation.parse(data));
     }
     
     public abstract boolean is(BlockState state);

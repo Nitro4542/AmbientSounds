@@ -44,7 +44,7 @@ import team.creative.creativecore.client.render.text.DebugTextRenderer;
 
 public class AmbientEngine {
     
-    public static final ResourceLocation CONFIG_LOCATION = new ResourceLocation(AmbientSounds.MODID, "config.json");
+    public static final ResourceLocation CONFIG_LOCATION = ResourceLocation.tryBuild(AmbientSounds.MODID, "config.json");
     public static final String ENGINE_LOCATION = "engine.json";
     public static final String DIMENSIONS_LOCATION = "dimensions";
     public static final String REGIONS_LOCATION = "regions";
@@ -66,14 +66,14 @@ public class AmbientEngine {
     }
     
     public static AmbientEngine attemptToLoadEngine(AmbientSoundEngine soundEngine, ResourceManager manager, String name) throws Exception {
-        InputStream engineInput = manager.getResource(new ResourceLocation(AmbientSounds.MODID, name + "/" + ENGINE_LOCATION)).orElseThrow().open();
+        InputStream engineInput = manager.getResource(ResourceLocation.tryBuild(AmbientSounds.MODID, name + "/" + ENGINE_LOCATION)).orElseThrow().open();
         try {
             AmbientEngine engine = GSON.fromJson(JsonParser.parseString(IOUtils.toString(engineInput, Charsets.UTF_8)).getAsJsonObject(), AmbientEngine.class);
             
             if (!engine.name.equals(name))
                 throw new Exception("Invalid engine name");
             
-            engine.dimensions = loadMultiple(manager, new ResourceLocation(AmbientSounds.MODID, name + "/" + DIMENSIONS_LOCATION), AmbientDimension.class, x -> x.stack,
+            engine.dimensions = loadMultiple(manager, ResourceLocation.tryBuild(AmbientSounds.MODID, name + "/" + DIMENSIONS_LOCATION), AmbientDimension.class, x -> x.stack,
                 (dimension, dimensionName, json) -> {
                     dimension.name = dimensionName;
                     dimension.load(engine, GSON, manager, json);
@@ -88,7 +88,7 @@ public class AmbientEngine {
                     }
                 });
             
-            engine.generalRegions = loadMultiple(manager, new ResourceLocation(AmbientSounds.MODID, name + "/" + REGIONS_LOCATION), AmbientRegion.class, x -> x.stack,
+            engine.generalRegions = loadMultiple(manager, ResourceLocation.tryBuild(AmbientSounds.MODID, name + "/" + REGIONS_LOCATION), AmbientRegion.class, x -> x.stack,
                 (region, regionName, json) -> {
                     region.name = regionName;
                     region.load(engine, GSON, manager);
@@ -117,13 +117,13 @@ public class AmbientEngine {
                 engine.blockGroups.put(blockGroupName, group);
             }
             
-            engine.soundCollections = loadMultiple(manager, new ResourceLocation(AmbientSounds.MODID, name + "/" + SOUNDCOLLECTIONS_LOCATION), AmbientSoundCollection.class,
+            engine.soundCollections = loadMultiple(manager, ResourceLocation.tryBuild(AmbientSounds.MODID, name + "/" + SOUNDCOLLECTIONS_LOCATION), AmbientSoundCollection.class,
                 x -> x.stack, (soundGroup, soundGroupName, json) -> {});
             
-            engine.soundCategories = loadMultiple(manager, new ResourceLocation(AmbientSounds.MODID, name + "/" + SOUNDCATEGORIES_LOCATION), AmbientSoundCategory.class,
+            engine.soundCategories = loadMultiple(manager, ResourceLocation.tryBuild(AmbientSounds.MODID, name + "/" + SOUNDCATEGORIES_LOCATION), AmbientSoundCategory.class,
                 x -> x.stack, (soundCategory, soundCategoryName, json) -> soundCategory.name = soundCategoryName);
             
-            engine.features = loadMultiple(manager, new ResourceLocation(AmbientSounds.MODID, name + "/" + FEATURES_LOCATION), AmbientFeature.class, x -> x.stack,
+            engine.features = loadMultiple(manager, ResourceLocation.tryBuild(AmbientSounds.MODID, name + "/" + FEATURES_LOCATION), AmbientFeature.class, x -> x.stack,
                 (feature, featureName, json) -> feature.name = featureName);
             
             engine.silentDim = new AmbientDimension();

@@ -176,7 +176,6 @@ public class AmbientSound extends AmbientCondition {
             }
             
             if (stream1 != null) {
-                
                 if (stream1.pitch < aimedPitch)
                     stream1.pitch += Math.min(currentPropertries.getFadeInPitch(engine), aimedPitch - stream1.pitch);
                 else if (stream1.pitch > aimedPitch)
@@ -184,7 +183,6 @@ public class AmbientSound extends AmbientCondition {
                 stream1.ticksPlayed++;
             }
             if (stream2 != null) {
-                
                 if (stream2.pitch < aimedPitch)
                     stream2.pitch += Math.min(currentPropertries.getFadeInPitch(engine), aimedPitch - stream2.pitch);
                 else if (stream2.pitch > aimedPitch)
@@ -198,10 +196,11 @@ public class AmbientSound extends AmbientCondition {
                 stream2 = null;
             }
             
-            if (pauseTimer == -1)
+            if (pauseTimer == -1) {
                 if (currentPropertries.pause != null)
                     pauseTimer = (int) currentPropertries.pause.randomValue();
-                
+            }
+            
             if (pauseTimer <= 0)
                 stream1 = play(getRandomFile(), env);
             else

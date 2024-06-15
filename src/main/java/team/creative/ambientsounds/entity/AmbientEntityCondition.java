@@ -88,7 +88,7 @@ public class AmbientEntityCondition {
         if (type != null) {
             parsedType = new ArrayList<>();
             for (String entityType : type) {
-                ResourceLocation location = new ResourceLocation(entityType);
+                ResourceLocation location = ResourceLocation.parse(entityType);
                 var result = BuiltInRegistries.ENTITY_TYPE.getOptional(location);
                 if (result.isPresent())
                     parsedType.add(result.get());
@@ -98,7 +98,7 @@ public class AmbientEntityCondition {
         if (badType != null) {
             parsedBadType = new ArrayList<>();
             for (String entityType : badType) {
-                ResourceLocation location = new ResourceLocation(entityType);
+                ResourceLocation location = ResourceLocation.parse(entityType);
                 var result = BuiltInRegistries.ENTITY_TYPE.getOptional(location);
                 if (result.isPresent())
                     parsedBadType.add(result.get());
