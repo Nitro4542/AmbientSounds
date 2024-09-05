@@ -6,5 +6,5 @@ import net.minecraft.resources.ResourceLocation;
 
 public interface OggAudioStreamExtended {
     
-    public void setPositionRandomly(long length, ResourceLocation id) throws IOException;
+    public boolean setPositionRandomly(long length, ResourceLocation id) throws IOException;
 }

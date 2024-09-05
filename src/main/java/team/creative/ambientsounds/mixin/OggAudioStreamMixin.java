@@ -15,6 +15,7 @@ import com.jcraft.jogg.Page;
 
 import net.minecraft.client.sounds.JOrbisAudioStream;
 import net.minecraft.resources.ResourceLocation;
+import team.creative.ambientsounds.AmbientSounds;
 import team.creative.ambientsounds.sound.OggAudioStreamExtended;
 
 @Mixin(JOrbisAudioStream.class)
@@ -31,24 +32,36 @@ public abstract class OggAudioStreamMixin implements OggAudioStreamExtended {
     private InputStream input;
     
     @Override
-    public void setPositionRandomly(long length, ResourceLocation id) throws IOException {
+    public boolean setPositionRandomly(long length, ResourceLocation id) throws IOException {
         if (length == 0)
-            return;
+            return true;
         int skipped = RANDOM.nextInt((int) (length - length / 4));
         input.skipNBytes(skipped);
+        int searched = 0;
+        int errors = 0;
         while (true) {
             try {
-                for (int i = 0; i < 4; i++)
-                    ((JOrbisAudioStream) (Object) this).readChunk(x -> {});
+                for (int i = 0; i < 2; i++) {
+                    searched++;
+                    if (!((JOrbisAudioStream) (Object) this).readChunk(x -> {})) {
+                        AmbientSounds.LOGGER.error("Possibly reached end of file {}/{}", skipped, length);
+                        return false;
+                    }
+                }
             } catch (IOException | IllegalStateException e) {
                 try {
+                    errors++;
                     readToBuffer();
                 } catch (IOException e2) {
-                    break;
+                    AmbientSounds.LOGGER.error("Failed to play sound with offset {}/{}", skipped, length);
+                    AmbientSounds.LOGGER.error(e2);
+                    return false;
                 }
                 continue;
             }
-            break;
+            if (searched < 6 || (errors < 1 && searched < 512))
+                continue;
+            return true;
         }
     }
     

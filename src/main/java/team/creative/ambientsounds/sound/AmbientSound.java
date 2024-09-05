@@ -518,18 +518,23 @@ public class AmbientSound extends AmbientCondition {
                             try {
                                 JOrbisAudioStream stream = new JOrbisAudioStream(inputstream);
                                 if (first && currentPropertries.randomOffset && AmbientSounds.CONFIG.playSoundWithOffset)
-                                    ((OggAudioStreamExtended) stream).setPositionRandomly(ResourceUtils.length(PackType.CLIENT_RESOURCES, resource, id), id);
+                                    if (!((OggAudioStreamExtended) stream).setPositionRandomly(ResourceUtils.length(PackType.CLIENT_RESOURCES, resource, id), id)) {
+                                        inputstream.reset();
+                                        stream = new JOrbisAudioStream(inputstream);
+                                    }
                                 first = false;
                                 return stream;
                             } catch (Exception e2) {
-                                return new JOrbisAudioStream(resource.open());
+                                inputstream.reset();
+                                return new JOrbisAudioStream(inputstream);
                             }
                         }
                     }, inputstream) : new JOrbisAudioStream(inputstream);
                 } catch (IOException ioexception) {
+                    AmbientSounds.LOGGER.error(ioexception);
                     throw new CompletionException(ioexception);
                 }
-            }, Util.backgroundExecutor());
+            }, Util.nonCriticalIoPool());
         }
         
         public void collectDetails(DebugTextRenderer text) {
