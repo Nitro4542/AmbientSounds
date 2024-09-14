@@ -1,6 +1,6 @@
 package team.creative.ambientsounds;
 
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import net.minecraft.Util;
 import net.minecraft.server.packs.resources.SimplePreparableReloadListener;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -24,21 +24,15 @@ import team.creative.creativecore.client.ClientLoader;
 import team.creative.creativecore.client.CreativeCoreClient;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 
 @Mod(value = AmbientSounds.MODID)
 public class AmbientSounds implements ClientLoader {
 
     public static final Logger LOGGER = LogManager.getLogger(AmbientSounds.MODID);
     public static final String MODID = "ambientsounds";
-    public static final String MOD_NAME = "AmbientSounds";
     public static final AmbientSoundsConfig CONFIG = new AmbientSoundsConfig();
 
     public static AmbientTickHandler TICK_HANDLER;
-
-    private static final @NotNull Executor RELOAD_THREAD_POOL_EXECUTOR = Executors.newFixedThreadPool(
-            1, new ThreadFactoryBuilder().setNameFormat(String.format("%s Reloader", MOD_NAME)).build());
 
     public AmbientSounds() {
         ICreativeLoader loader = CreativeCore.loader();
@@ -50,10 +44,10 @@ public class AmbientSounds implements ClientLoader {
     }
 
     public static void reloadAsync() {
-        CompletableFuture.runAsync(AmbientSounds::reload, RELOAD_THREAD_POOL_EXECUTOR);
+        CompletableFuture.runAsync(AmbientSounds::reload, Util.backgroundExecutor());
     }
 
-    private static void reload() {
+    private static synchronized void reload() {
         if (TICK_HANDLER.engine != null)
             TICK_HANDLER.engine.stopEngine();
         if (TICK_HANDLER.environment != null)
