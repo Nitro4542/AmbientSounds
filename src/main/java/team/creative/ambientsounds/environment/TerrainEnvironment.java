@@ -20,10 +20,10 @@ public class TerrainEnvironment {
         int y;
         int heighest = 0;
         
-        for (y = level.getMaxBuildHeight(); y > level.getMinBuildHeight(); --y) {
+        for (y = level.getMaxY(); y > level.getMinY(); --y) {
             pos.setY(y);
             BlockState state = level.getBlockState(pos);
-            if (state.isSolidRender(level, pos) || state.is(BlockTags.LEAVES) || level.getFluidState(pos).is(FluidTags.WATER)) {
+            if (state.isSolidRender() || state.is(BlockTags.LEAVES) || level.getFluidState(pos).is(FluidTags.WATER)) {
                 heighest = y;
                 break;
             }

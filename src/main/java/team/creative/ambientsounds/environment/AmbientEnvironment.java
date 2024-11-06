@@ -53,7 +53,7 @@ public class AmbientEnvironment {
     public void analyzeFast(AmbientDimension dimension, Player player, Level level, float deltaTime) {
         this.dimension = dimension;
         this.raining = level.isRainingAt(player.blockPosition().above());
-        this.snowing = level.getBiome(player.blockPosition()).value().coldEnoughToSnow(player.blockPosition()) && level.isRaining();
+        this.snowing = level.getBiome(player.blockPosition()).value().coldEnoughToSnow(player.blockPosition(), level.getSeaLevel()) && level.isRaining();
         this.thundering = level.isThundering() && !snowing;
         
         this.absoluteHeight = player.getEyeY();

@@ -39,7 +39,7 @@ public class BiomeEnvironment implements Iterable<Pair<BiomeArea, AmbientVolume>
                     
                     float biomeConditionVolume = (float) ((1 - center.distSqr(pos) / engine.squaredBiomeDistance) * volume.conditionVolume());
                     
-                    if (level.isRaining() && holder.value().getPrecipitationAt(pos) == Precipitation.RAIN)
+                    if (level.isRaining() && holder.value().getPrecipitationAt(pos, level.getSeaLevel()) == Precipitation.RAIN)
                         highestRainVolume = Math.max(highestRainVolume, biomeConditionVolume * volume.settingVolume());
                     
                     BiomeArea area = new BiomeArea(level, holder, pos);
@@ -77,7 +77,7 @@ public class BiomeEnvironment implements Iterable<Pair<BiomeArea, AmbientVolume>
         
         public BiomeArea(Level level, Holder<Biome> biome, BlockPos pos) {
             this.biome = biome;
-            this.location = level.registryAccess().registryOrThrow(Registries.BIOME).getKey(biome.value());
+            this.location = level.registryAccess().lookupOrThrow(Registries.BIOME).getKey(biome.value());
             this.pos = pos;
         }
         
