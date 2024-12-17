@@ -1,0 +1,29 @@
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        maven {
+            name = 'Fabric'
+            url = 'https://maven.fabricmc.net/'
+        }
+    }
+}
+
+plugins {
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '0.8.0'
+}
+
+rootProject.name = '1.21_fabric'
+include 'CreativeCore'
+project(':CreativeCore').buildFileName = 'build.fabric.gradle'
+include 'AmbientSounds'
+project(':AmbientSounds').buildFileName = 'build.fabric.gradle'
+include 'EnhancedVisuals'
+project(':EnhancedVisuals').buildFileName = 'build.fabric.gradle'
+include 'ItemPhysic'
+project(':ItemPhysic').buildFileName = 'build.fabric.gradle'
+include 'ItemPhysicLite'
+project(':ItemPhysicLite').buildFileName = 'build.fabric.gradle'
+include 'OpticManager'
+project(':OpticManager').buildFileName = 'build.fabric.gradle'
+include 'NoDurabilityLost'
+project(':NoDurabilityLost').buildFileName = 'build.fabric.gradle'

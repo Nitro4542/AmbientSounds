@@ -1,6 +1,8 @@
-# AmbientSounds
+# FabricMods
 
-[Wiki](https://github.com/CreativeMD/AmbientSounds/wiki)
+Repository for all the mods.
 
-## Setup
+## Forge
+
+A similar setup exists for Forge:
 https://github.com/CreativeMD/ForgeMods
