@@ -27,6 +27,8 @@ jobs:
         uses: gradle/wrapper-validation-action@v2
       - name: make gradle wrapper executable
         run: chmod +x ./gradlew
+      - name: update gradle
+        run: ./gradlew wrapper --gradle-version 8.11.1
       - name: build
         run: ./gradlew build
       - name: capture build artifacts
