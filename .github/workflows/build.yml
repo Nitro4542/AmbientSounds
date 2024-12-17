@@ -23,8 +23,8 @@ jobs:
         with:
           java-version: ${{ matrix.java }}
           distribution: 'microsoft'
-      - name: create gradle wrapper
-        run: gradle wrapper
+      - name: validate gradle wrapper
+        uses: gradle/wrapper-validation-action@v2
       - name: make gradle wrapper executable
         run: chmod +x ./gradlew
       - name: build
