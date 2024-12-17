@@ -29,3 +29,7 @@ modSides=[ "client" ]
 loom.mixin {
     defaultRefmapName = "ambientsounds.mixins.refmap.json"
 }
+
+task wrapper(type: Wrapper){
+   gradleVersion = '8.11.1'
+}

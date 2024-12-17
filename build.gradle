@@ -36,3 +36,7 @@ modDependencies = [
 ]
 modMixins = [ "ambientsounds.mixins.json" ]
 modSides=[ "client" ]
+
+task wrapper(type: Wrapper){
+   gradleVersion = '8.11.1'
+}
